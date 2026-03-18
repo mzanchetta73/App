@@ -30,7 +30,11 @@ export default function Calendario() {
             <button onClick={() => setDataCorrente(new Date())} className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-100">Oggi</button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-500">Mese</span>
+            <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+  <button className="px-3 py-1.5 text-sm bg-blue-600 text-white">Mese</button>
+  <button className="px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-600">Settimana</button>
+  <button className="px-3 py-1.5 text-sm hover:bg-gray-100 text-gray-600">Giorno</button>
+</div>
             <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">+ Nuovo</button>
             <button className="px-3 py-2 border border-gray-300 text-sm rounded-lg hover:bg-gray-100">🖨 Stampa</button>
           </div>
