@@ -210,10 +210,11 @@ export default function DialogCliente({ onClose, onSaved, cliente }: Props) {
                         </div>
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           a.stato === 'completato' ? 'bg-green-100 text-green-700' :
-                          a.stato === 'cancellato' ? 'bg-red-100 text-red-700' :
-                          'bg-blue-50 text-blue-700'
+a.stato === 'cancellato' ? 'bg-red-100 text-red-700' :
+a.stato === 'in_attesa_spostamento' ? 'bg-gray-100 text-gray-500' :
+'bg-blue-50 text-blue-700'
                         }`}>
-                          {a.stato === 'programmato' ? 'Programmato' : a.stato === 'completato' ? 'Completato' : 'Annullato'}
+                          {a.stato === 'programmato' ? 'Programmato' : a.stato === 'completato' ? 'Completato' : a.stato === 'in_attesa_spostamento' ? 'In attesa spostamento' : 'Annullato'}
                         </span>
                       </div>
                     ))}

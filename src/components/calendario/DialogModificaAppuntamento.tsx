@@ -103,6 +103,7 @@ export default function DialogModificaAppuntamento({ appuntamento, onClose, onSa
               <option value="programmato">Programmato</option>
               <option value="completato">Completato</option>
               <option value="cancellato">Cancellato</option>
+              <option value="in_attesa_spostamento">In attesa spostamento</option>
             </select>
           </div>
           <div>
