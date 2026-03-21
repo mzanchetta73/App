@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import DialogAppuntamento from '@/components/calendario/DialogAppuntamento'
+import DialogModificaAppuntamento from '@/components/calendario/DialogModificaAppuntamento'
 
 interface Props {
   onClose: () => void
@@ -26,6 +28,9 @@ export default function DialogCliente({ onClose, onSaved, cliente }: Props) {
   const [saving, setSaving] = useState(false)
   const [appuntamenti, setAppuntamenti] = useState<Appuntamento[]>([])
   const [tabApp, setTabApp] = useState<'attivi' | 'annullati'>('attivi')
+  const [dialogNuovoApp, setDialogNuovoApp] = useState(false)
+  const [appuntamentoSelezionato, setAppuntamentoSelezionato] = useState<Appuntamento | undefined>()
+const [dialogModificaApp, setDialogModificaApp] = useState(false)
   const [filtroApp, setFiltroApp] = useState('tutti')
   const [meseInizio, setMeseInizio] = useState(0)
   const [annoInizio, setAnnoInizio] = useState(2026)
@@ -160,7 +165,7 @@ export default function DialogCliente({ onClose, onSaved, cliente }: Props) {
                     <span className="text-sm font-semibold text-gray-700">📅 Appuntamenti</span>
                     <span className="bg-gray-100 text-gray-600 text-xs font-medium px-2 py-0.5 rounded-full">{appFiltrati.length}</span>
                   </div>
-                  <button className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg hover:bg-blue-700">+</button>
+                  <button onClick={() => setDialogNuovoApp(true)} className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-lg hover:bg-blue-700">+</button>
                 </div>
 
                 {/* Filtro tipo */}
@@ -199,8 +204,9 @@ export default function DialogCliente({ onClose, onSaved, cliente }: Props) {
                   <div className="space-y-2">
                     {appFiltrati.map(a => (
                       <div key={a.id}
-                        className="border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:bg-gray-50"
-                        style={{ borderLeft: `4px solid ${a.tipologia_colore || '#3B82F6'}` }}>
+  onClick={() => { setAppuntamentoSelezionato(a); setDialogModificaApp(true) }}
+  className="border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
+  style={{ borderLeft: `4px solid ${a.tipologia_colore || '#3B82F6'}` }}>
                         <div>
                           <p className="font-semibold text-sm text-gray-800">{a.tipologia_nome}</p>
                           <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
@@ -225,6 +231,30 @@ a.stato === 'in_attesa_spostamento' ? 'bg-gray-100 text-gray-500' :
           )}
         </div>
       </div>
+      {dialogModificaApp && appuntamentoSelezionato && (
+  <DialogModificaAppuntamento
+    appuntamento={appuntamentoSelezionato}
+    onClose={() => setDialogModificaApp(false)}
+    onSaved={() => {
+      setDialogModificaApp(false)
+      supabase.from('appuntamenti').select('*').eq('cliente_id', cliente!.id)
+        .order('data', { ascending: false })
+        .then(({ data }) => { if (data) setAppuntamenti(data) })
+    }}
+  />
+)}
+      {dialogNuovoApp && cliente && (
+  <DialogAppuntamento
+    data={new Date().toISOString().split('T')[0]}
+    onClose={() => setDialogNuovoApp(false)}
+    onSaved={() => {
+      setDialogNuovoApp(false)
+      supabase.from('appuntamenti').select('*').eq('cliente_id', cliente.id)
+        .order('data', { ascending: false })
+        .then(({ data }) => { if (data) setAppuntamenti(data) })
+    }}
+  />
+)}
     </div>
   )
 }
