@@ -207,12 +207,35 @@ const [dialogModificaApp, setDialogModificaApp] = useState(false)
   onClick={() => { setAppuntamentoSelezionato(a); setDialogModificaApp(true) }}
   className="border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer"
   style={{ borderLeft: `4px solid ${a.tipologia_colore || '#3B82F6'}` }}>
-                        <div>
+<div>
                           <p className="font-semibold text-sm text-gray-800">{a.tipologia_nome}</p>
                           <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
                             <span>📅 {new Date(a.data).toLocaleDateString('it-IT')}</span>
                             <span>⏰ {a.ora_inizio} - {a.ora_fine}</span>
                           </p>
+                          {a.stato === 'programmato' && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                if (!confirm("Spostare questo appuntamento in lista d'attesa?")) return
+                                await supabase.from('appuntamenti').update({ stato: 'in_attesa_spostamento' }).eq('id', a.id)
+                                await supabase.from('lista_attesa').insert({
+                                  tipo: 'spostamento',
+                                  cliente_nome: `${cliente!.nome} ${cliente!.cognome}`,
+                                  telefono: cliente!.telefono,
+                                  email: cliente!.email,
+                                  stato: 'in_attesa',
+                                  data_richiesta: new Date().toISOString().split('T')[0]
+                                })
+                                supabase.from('appuntamenti').select('*').eq('cliente_id', cliente!.id)
+                                  .order('data', { ascending: false })
+                                  .then(({ data }) => { if (data) setAppuntamenti(data) })
+                              }}
+                              className="mt-1 text-xs text-amber-600 hover:text-amber-800 font-medium"
+                            >
+                              → Sposta in lista d'attesa
+                            </button>
+                          )}
                         </div>
                         <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
                           a.stato === 'completato' ? 'bg-green-100 text-green-700' :
