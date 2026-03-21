@@ -2,6 +2,7 @@
 import AppLayout from '@/components/layout/AppLayout'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import DialogRichiesta from '@/components/lista-attesa/DialogRichiesta'
 
 interface Richiesta {
   id: string
@@ -20,6 +21,7 @@ export default function ListaAttesa() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'in_attesa' | 'gestito'>('in_attesa')
   const [ricerca, setRicerca] = useState('')
+const [dialogAperto, setDialogAperto] = useState(false)
 
   useEffect(() => { caricaRichieste() }, [])
 
@@ -49,9 +51,12 @@ export default function ListaAttesa() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-gray-800">Lista d'attesa</h1>
-          <button className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
-            + Nuova richiesta
-          </button>
+          <button
+  onClick={() => setDialogAperto(true)}
+  className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
+>
+  + Nuova richiesta
+</button>
         </div>
         <div className="flex gap-2 mb-4">
           <button onClick={() => setTab('in_attesa')} className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'in_attesa' ? 'bg-blue-600 text-white' : 'bg-white border border-gray-300 text-gray-600'}`}>
@@ -97,7 +102,7 @@ export default function ListaAttesa() {
                     <button onClick={() => elimina(r.id)} className="text-red-400 hover:text-red-600">🗑</button>
                   </div>
                 </div>
-                <div className="mt-2 ml-12 flex flex-wrap gap-3 text-sm text-gray-500">
+<div className="mt-2 ml-12 flex flex-wrap gap-3 text-sm text-gray-500">
                   {r.telefono && <span>📞 {r.telefono}</span>}
                   {r.email && <span>✉️ {r.email}</span>}
                   {r.mese_preferito && <span>📅 {r.mese_preferito}</span>}
@@ -108,6 +113,12 @@ export default function ListaAttesa() {
           </div>
         )}
       </div>
+      {dialogAperto && (
+        <DialogRichiesta
+          onClose={() => setDialogAperto(false)}
+          onSaved={() => { setDialogAperto(false); caricaRichieste() }}
+        />
+      )}
     </AppLayout>
   )
 }
