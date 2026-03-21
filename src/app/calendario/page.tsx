@@ -6,6 +6,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOf
 import { it } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import DialogAppuntamento from '@/components/calendario/DialogAppuntamento'
+import DialogModificaAppuntamento from '@/components/calendario/DialogModificaAppuntamento'
 
 const giorniSettimana = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom']
 
@@ -25,6 +26,9 @@ export default function Calendario() {
   const [appuntamenti, setAppuntamenti] = useState<Appuntamento[]>([])
   const [dialogAperto, setDialogAperto] = useState(false)
   const [dataSelezionata, setDataSelezionata] = useState('')
+  const [dialogModificaAperto, setDialogModificaAperto] = useState(false)
+const [appuntamentoSelezionato, setAppuntamentoSelezionato] = useState<Appuntamento | undefined>()
+
 
   useEffect(() => {
     caricaAppuntamenti()
@@ -44,6 +48,12 @@ export default function Calendario() {
   function apriDialog(data: string) {
     setDataSelezionata(data)
     setDialogAperto(true)
+  }
+
+  function apriAppuntamento(e: React.MouseEvent, appuntamento: Appuntamento) {
+    e.stopPropagation()
+    setAppuntamentoSelezionato(appuntamento)
+    setDialogModificaAperto(true)
   }
 
   return (
@@ -103,14 +113,15 @@ export default function Calendario() {
                   </span>
                   <div className="mt-1 space-y-0.5">
                     {appuntamentiGiorno.map(a => (
-                      <div
-                        key={a.id}
-                        className="text-xs px-1 py-0.5 rounded truncate text-white"
-                        style={{ backgroundColor: a.tipologia_colore || '#3B82F6' }}
-                      >
-                        {a.ora_inizio} {a.cliente_nome}
-                      </div>
-                    ))}
+  <div
+    key={a.id}
+    onClick={(e) => apriAppuntamento(e, a)}
+    className="text-xs px-1 py-0.5 rounded truncate text-white cursor-pointer hover:opacity-80"
+    style={{ backgroundColor: a.tipologia_colore || '#3B82F6' }}
+  >
+    {a.ora_inizio} {a.cliente_nome}
+  </div>
+))}
                   </div>
                 </div>
               )
@@ -125,7 +136,14 @@ export default function Calendario() {
           onClose={() => setDialogAperto(false)}
           onSaved={() => { setDialogAperto(false); caricaAppuntamenti() }}
         />
-      )}
+        )}
+      {dialogModificaAperto && appuntamentoSelezionato && (
+  <DialogModificaAppuntamento
+    appuntamento={appuntamentoSelezionato}
+    onClose={() => setDialogModificaAperto(false)}
+    onSaved={() => { setDialogModificaAperto(false); caricaAppuntamenti() }}
+  />
+)}
     </AppLayout>
   )
 }
