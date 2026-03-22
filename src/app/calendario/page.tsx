@@ -117,9 +117,9 @@ const [appuntamentoSelezionato, setAppuntamentoSelezionato] = useState<Appuntame
     key={a.id}
     onClick={(e) => apriAppuntamento(e, a)}
     className="text-xs px-1 py-0.5 rounded truncate text-white cursor-pointer hover:opacity-80"
-    style={{ backgroundColor: a.stato === 'in_attesa_spostamento' ? '#9CA3AF' : a.stato === 'cancellato' ? '#9CA3AF' : (a.tipologia_colore || '#3B82F6') }}
-  >
-    {a.ora_inizio} {a.cliente_nome}
+    style={{ backgroundColor: (a.stato === 'in_attesa_spostamento' || a.stato === 'in_attesa_conferma' || a.stato === 'cancellato') ? '#9CA3AF' : (a.tipologia_colore || '#3B82F6') }}
+    >
+      {a.ora_inizio} {a.cliente_nome}
   </div>
 ))}
                   </div>

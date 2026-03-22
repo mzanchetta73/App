@@ -3,26 +3,23 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface Cliente { id: string; nome: string; cognome: string }
 interface Tipologia { id: string; nome: string; durata_minuti: number; colore: string }
-interface Props { data: string; onClose: () => void; onSaved: () => void }
+interface Props {
+  richiesta: { id: string; cliente_nome: string; telefono: string; email: string; tipo: string }
+  onClose: () => void
+  onSaved: () => void
+}
 
-export default function DialogAppuntamento({ data, onClose, onSaved }: Props) {
-  const [clienti, setClienti] = useState<Cliente[]>([])
+export default function DialogFissaAppuntamento({ richiesta, onClose, onSaved }: Props) {
   const [tipologie, setTipologie] = useState<Tipologia[]>([])
-  const [clienteId, setClienteId] = useState('')
-  const [nuovoCliente, setNuovoCliente] = useState(false)
-  const [nomeNuovo, setNomeNuovo] = useState('')
-  const [cognomeNuovo, setCognomeNuovo] = useState('')
   const [tipologiaId, setTipologiaId] = useState('')
-  const [dataApp, setDataApp] = useState(data)
+  const [data, setData] = useState('')
   const [oraInizio, setOraInizio] = useState('09:00')
   const [oraFine, setOraFine] = useState('10:00')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    supabase.from('clienti').select('id, nome, cognome').order('cognome').then(({ data }) => { if (data) setClienti(data) })
     supabase.from('tipologie').select('*').order('nome').then(({ data }) => { if (data) setTipologie(data) })
   }, [])
 
@@ -45,32 +42,21 @@ export default function DialogAppuntamento({ data, onClose, onSaved }: Props) {
   }
 
   async function salva() {
+    if (!data || !tipologiaId) return
     setSaving(true)
-    let idCliente = clienteId
-    let nomeCliente = ''
-    if (nuovoCliente) {
-      if (!cognomeNuovo.trim()) { setSaving(false); return }
-      const { data } = await supabase.from('clienti').insert({ nome: nomeNuovo, cognome: cognomeNuovo }).select().single()
-      if (data) { idCliente = data.id; nomeCliente = `${nomeNuovo} ${cognomeNuovo}` }
-    } else {
-      const c = clienti.find(c => c.id === clienteId)
-      if (!c) { setSaving(false); return }
-      nomeCliente = `${c.nome} ${c.cognome}`
-    }
-    if (!tipologiaId) { setSaving(false); return }
     const t = tipologie.find(t => t.id === tipologiaId)
     await supabase.from('appuntamenti').insert({
-      cliente_id: idCliente,
-      cliente_nome: nomeCliente,
+      cliente_nome: richiesta.cliente_nome,
       tipologia_id: tipologiaId,
       tipologia_nome: t?.nome,
       tipologia_colore: t?.colore,
-      data: dataApp,
+      data,
       ora_inizio: oraInizio,
       ora_fine: oraFine,
       note,
-      stato: 'programmato'
+      stato: 'in_attesa_conferma'
     })
+    await supabase.from('lista_attesa').update({ stato: 'gestito' }).eq('id', richiesta.id)
     setSaving(false)
     onSaved()
   }
@@ -79,44 +65,29 @@ export default function DialogAppuntamento({ data, onClose, onSaved }: Props) {
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-800">Nuovo Appuntamento</h2>
+          <h2 className="text-lg font-semibold text-gray-800">Fissa appuntamento</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         </div>
         <div className="p-6 space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-sm font-medium text-gray-700">Cliente</label>
-              <button onClick={() => setNuovoCliente(!nuovoCliente)} className="text-xs text-blue-600 hover:underline">
-                {nuovoCliente ? '← Seleziona esistente' : '+ Nuovo cliente'}
-              </button>
+          <div className="bg-blue-50 rounded-lg px-4 py-3">
+            <p className="font-medium text-blue-800">{richiesta.cliente_nome}</p>
+            <div className="flex gap-4 mt-1 text-xs text-blue-600">
+              {richiesta.telefono && <span>📞 {richiesta.telefono}</span>}
+              {richiesta.email && <span>✉️ {richiesta.email}</span>}
             </div>
-            {nuovoCliente ? (
-              <div className="grid grid-cols-2 gap-2">
-                <input type="text" placeholder="Nome" value={nomeNuovo} onChange={e => setNomeNuovo(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="text" placeholder="Cognome *" value={cognomeNuovo} onChange={e => setCognomeNuovo(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-              </div>
-            ) : (
-              <select value={clienteId} onChange={e => setClienteId(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">Seleziona cliente</option>
-                {clienti.map(c => <option key={c.id} value={c.id}>{c.cognome} {c.nome}</option>)}
-              </select>
-            )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipologia</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipologia *</label>
             <select value={tipologiaId} onChange={e => selezionaTipologia(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Seleziona tipologia</option>
+              <option value="">Seleziona tipologia...</option>
               {tipologie.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-              <input type="date" value={dataApp} onChange={e => setDataApp(e.target.value)}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Data *</label>
+              <input type="date" value={data} onChange={e => setData(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
@@ -133,7 +104,7 @@ export default function DialogAppuntamento({ data, onClose, onSaved }: Props) {
           </div>
         </div>
         <div className="flex gap-2 px-6 pb-6">
-          <button onClick={onClose} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Chiudi</button>
+          <button onClick={onClose} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Annulla</button>
           <button onClick={salva} disabled={saving} className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {saving ? 'Salvataggio...' : 'Salva'}
           </button>

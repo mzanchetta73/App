@@ -4,10 +4,12 @@ import AppLayout from '@/components/layout/AppLayout'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import DialogRichiesta from '@/components/lista-attesa/DialogRichiesta'
+import DialogFissaAppuntamento from '@/components/lista-attesa/DialogFissaAppuntamento'
 
-interface Richiesta {
+ interface Richiesta {
   id: string
   tipo: string
+  tipo_richiesta: string
   cliente_nome: string
   telefono: string
   email: string
@@ -24,6 +26,8 @@ export default function ListaAttesa() {
   const [ricerca, setRicerca] = useState('')
   const [dialogAperto, setDialogAperto] = useState(false)
   const [mostraGestite, setMostraGestite] = useState(false)
+const [richiestaSelezionata, setRichiestaSelezionata] = useState<Richiesta | undefined>()
+const [dialogFissaAperto, setDialogFissaAperto] = useState(false)
 
   useEffect(() => { caricaRichieste() }, [])
 
@@ -45,7 +49,7 @@ export default function ListaAttesa() {
   }
 
   const nuoviClienti = richieste.filter(r => r.tipo === 'nuovo_cliente')
-  const spostamenti = richieste.filter(r => r.tipo === 'spostamento')
+  const spostamenti = richieste.filter(r => r.tipo === 'spostamento' || r.tipo === 'inserimento')
 
   const filtrate = (tab === 'nuovo_cliente' ? nuoviClienti : spostamenti)
     .filter(r => mostraGestite ? true : r.stato === 'in_attesa')
@@ -116,7 +120,8 @@ export default function ListaAttesa() {
         ) : (
           <div className="space-y-3">
             {filtrate.map((r, i) => (
-              <div key={r.id} className={`bg-white border border-gray-200 rounded-lg p-4 ${r.stato === 'gestito' ? 'opacity-60' : ''}`}>
+              <div key={r.id} onClick={() => { if (r.stato === 'in_attesa') { setRichiestaSelezionata(r); setDialogAperto(true) } }}
+  className={`bg-white border border-gray-200 rounded-lg p-4 ${r.stato === 'gestito' ? 'opacity-60' : ''} ${r.stato === 'in_attesa' ? 'cursor-pointer hover:border-blue-300' : ''}`}>
                 <div className="flex items-start gap-3">
                   <span className="text-gray-400 font-medium text-sm w-5 pt-0.5">{i + 1}</span>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${r.tipo === 'nuovo_cliente' ? 'bg-blue-100' : 'bg-amber-100'}`}>
@@ -127,13 +132,17 @@ export default function ListaAttesa() {
                       <h3 className="font-semibold text-gray-800">{r.cliente_nome}</h3>
                       <span className="text-xs text-gray-500">Richiesta: {new Date(r.data_richiesta).toLocaleDateString('it-IT')}</span>
                       {r.tipo === 'spostamento' ? (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Spostamento appuntamento</span>
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.tipo_richiesta === 'inserimento' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700'}`}>
+  {r.tipo_richiesta === 'inserimento' ? 'Inserimento' : 'Spostamento appuntamento'}
+</span>
                       ) : (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">Nuovo cliente</span>
                       )}
                       {r.mese_preferito && (
-                        <span className="text-xs text-gray-500 flex items-center gap-1">📅 {r.mese_preferito}</span>
-                      )}
+  <span className="text-xs text-gray-500 flex items-center gap-1">
+    📅 {r.mese_preferito.split('-').reverse().join('/')}
+  </span>
+)}
                       {r.telefono && (
                         <span className="text-xs text-gray-500 flex items-center gap-1">📞 {r.telefono}</span>
                       )}
@@ -146,11 +155,10 @@ export default function ListaAttesa() {
                       {r.stato === 'in_attesa' ? 'In attesa' : 'Gestito'}
                     </span>
                     {r.stato === 'in_attesa' && (
-                      <button onClick={() => segnaGestito(r.id)} className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-full" title="Segna come gestito">
-                        ✓
+                      <button onClick={(e) => { e.stopPropagation(); segnaGestito(r.id) }} className="p-1.5 text-green-500 hover:text-green-700 hover:bg-green-50 rounded-full" title="Segna come gestito">
                       </button>
                     )}
-                    <button onClick={() => elimina(r.id)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full">
+                    <button onClick={(e) => { e.stopPropagation(); elimina(r.id) }} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full">
                       🗑
                     </button>
                   </div>
@@ -160,13 +168,20 @@ export default function ListaAttesa() {
           </div>
         )}
       </div>
-
-      {dialogAperto && (
-        <DialogRichiesta
-          onClose={() => setDialogAperto(false)}
-          onSaved={() => { setDialogAperto(false); caricaRichieste() }}
-        />
-      )}
+{dialogFissaAperto && richiestaSelezionata && (
+  <DialogFissaAppuntamento
+    richiesta={richiestaSelezionata}
+    onClose={() => setDialogFissaAperto(false)}
+    onSaved={() => { setDialogFissaAperto(false); caricaRichieste() }}
+  />
+)}
+{dialogAperto && (
+  <DialogRichiesta
+    onClose={() => { setDialogAperto(false); setRichiestaSelezionata(undefined) }}
+    onSaved={() => { setDialogAperto(false); setRichiestaSelezionata(undefined); caricaRichieste() }}
+    richiesta={richiestaSelezionata}
+  />
+)}
     </AppLayout>
   )
 }
