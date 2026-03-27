@@ -526,11 +526,24 @@ export default function Calendario() {
   }
   function clickApp(e:React.MouseEvent,app:Appuntamento){
     e.stopPropagation()
-    // Appuntamento in attesa spostamento: apri solo DialogFissa (non modificabile dal calendario)
     if(app.stato==='in_attesa_spostamento'){
-      supabase.from('lista_attesa').select('id,cliente_nome,telefono,email,tipo')
-        .eq('appuntamento_id',app.id).eq('stato','in_attesa').maybeSingle()
-        .then(({data})=>{ if(data){setRichiestaFissa(data);setDialogFissa(true)} })
+      // Apri direttamente il dialog con i dati dell'appuntamento cliccato
+      // Non fare query lista_attesa qui — sarà il dialog a trovare la riga giusta
+      setRichiestaFissa({
+        id: '__from_calendario__', // segnale speciale
+        appuntamento_id: app.id,   // id reale dell'appuntamento grigio
+        cliente_nome: app.cliente_nome,
+        telefono: '', email: '',
+        tipo: 'spostamento',
+        _appuntamento: {
+          data: app.data,
+          ora_inizio: app.ora_inizio,
+          ora_fine: app.ora_fine,
+          tipologia_nome: app.tipologia_nome,
+          tipologia_colore: app.tipologia_colore,
+        }
+      })
+      setDialogFissa(true)
       return
     }
     setAppAzione(app)
@@ -603,10 +616,10 @@ export default function Calendario() {
           {vista==='mese'&&(
             <div className="flex-1 border border-gray-200 rounded-lg overflow-auto bg-white">
               <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
-  {GIORNI_SHORT.map((g,i)=>(
-    <div key={g} className={`py-2 text-center text-xs font-medium uppercase border-r border-gray-200 ${i>=5?'text-red-400':'text-gray-500'}`}>{g}</div>
-  ))}
-</div>
+                {GIORNI_SHORT.map((g,i)=>(
+                  <div key={g} className={`py-2 text-center text-xs font-medium uppercase ${i>=5?'text-red-400':'text-gray-500'}`}>{g}</div>
+                ))}
+              </div>
               <div className="grid grid-cols-7" style={{gridTemplateRows:`repeat(${giorni.length/7},minmax(110px,1fr))`}}>
                 {giorni.map((giorno,i)=>{
                   const isOggi=isSameDay(giorno,new Date())

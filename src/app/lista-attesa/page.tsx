@@ -255,7 +255,37 @@ export default function ListaAttesa() {
                       </span>
                       {r.stato === 'in_attesa' && (
                         <>
-                          <button onClick={e => { e.stopPropagation(); setRichiestaSelezionata(r); setDialogFissaAperto(true) }}
+                          <button onClick={async e => {
+                              e.stopPropagation()
+                              // Carica appuntamento_id fresco da DB (il join lo azzera)
+                              const { data: laFresh } = await supabase
+                                .from('lista_attesa')
+                                .select('appuntamento_id')
+                                .eq('id', r.id)
+                                .single()
+                              const appId = laFresh?.appuntamento_id
+                              let appDatiFresch = r.appuntamento
+                              if (appId && !appDatiFresch) {
+                                const { data: appFresh } = await supabase
+                                  .from('appuntamenti')
+                                  .select('data,ora_inizio,ora_fine,tipologia_nome,tipologia_colore')
+                                  .eq('id', appId)
+                                  .single()
+                                appDatiFresch = appFresh
+                              }
+                              setRichiestaSelezionata({
+                                ...r,
+                                appuntamento_id: appId || r.appuntamento_id,
+                                _appuntamento: appDatiFresch ? {
+                                  data: appDatiFresch.data,
+                                  ora_inizio: appDatiFresch.ora_inizio,
+                                  ora_fine: appDatiFresch.ora_fine,
+                                  tipologia_nome: appDatiFresch.tipologia_nome,
+                                  tipologia_colore: appDatiFresch.tipologia_colore,
+                                } : undefined
+                              } as any)
+                              setDialogFissaAperto(true)
+                            }}
                             className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-full transition-colors"
                             title={isSlot ? 'Assegna slot' : 'Fissa appuntamento'}>📅</button>
                           <button onClick={e => { e.stopPropagation(); segnaGestito(r) }}
@@ -276,7 +306,19 @@ export default function ListaAttesa() {
 
       {dialogFissaAperto && richiestaSelezionata && (
         <DialogFissaAppuntamento
-          richiesta={richiestaSelezionata}
+          richiesta={{
+            ...richiestaSelezionata,
+            // Passa appuntamento_id esplicitamente — il join Supabase può sovrascriverlo
+            appuntamento_id: richiestaSelezionata.appuntamento_id,
+            // Passa anche i dati appuntamento come _appuntamento per precompilare data/ora
+            _appuntamento: richiestaSelezionata.appuntamento ? {
+              data: richiestaSelezionata.appuntamento.data,
+              ora_inizio: richiestaSelezionata.appuntamento.ora_inizio,
+              ora_fine: richiestaSelezionata.appuntamento.ora_fine,
+              tipologia_nome: richiestaSelezionata.appuntamento.tipologia_nome,
+              tipologia_colore: richiestaSelezionata.appuntamento.tipologia_colore,
+            } : undefined
+          }}
           onClose={() => { setDialogFissaAperto(false); setRichiestaSelezionata(undefined) }}
           onSaved={() => { setDialogFissaAperto(false); setRichiestaSelezionata(undefined); caricaRichieste() }}
         />
