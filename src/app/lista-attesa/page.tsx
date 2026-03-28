@@ -15,6 +15,12 @@ interface Richiesta {
   tipologia?: { nome: string; colore: string }
 }
 
+const GIORNI_IT = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab']
+function formatDataConGiorno(dataStr: string) {
+  const d = new Date(dataStr + 'T00:00:00')
+  return `${GIORNI_IT[d.getDay()]} ${d.toLocaleDateString('it-IT')}`
+}
+
 const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic']
 const ANNI = Array.from({ length: 5 }, (_, i) => 2024 + i)
 type Tab = 'nuovo_cliente' | 'spostamento' | 'slot_liberato'
@@ -224,14 +230,14 @@ export default function ListaAttesa() {
                             <>
                               <span className="font-medium text-gray-700">App. disponibile:</span>
                               {r.appuntamento && <>
-                                <span className="text-gray-600">{new Date(r.appuntamento.data+'T00:00:00').toLocaleDateString('it-IT')} ore {r.appuntamento.ora_inizio}–{r.appuntamento.ora_fine}</span>
+                                <span className="text-gray-600">{formatDataConGiorno(r.appuntamento.data)} ore {r.appuntamento.ora_inizio}–{r.appuntamento.ora_fine}</span>
                                 <span className="font-medium" style={{ color: colore }}>{r.appuntamento.tipologia_nome}</span>
                               </>}
                             </>
                           ) : r.tipo === 'spostamento' && r.appuntamento ? (
                             <>
                               <span className="font-medium text-gray-700">Da spostare:</span>
-                              <span className="text-gray-600">{new Date(r.appuntamento.data+'T00:00:00').toLocaleDateString('it-IT')} ore {r.appuntamento.ora_inizio}–{r.appuntamento.ora_fine}</span>
+                              <span className="text-gray-600">{formatDataConGiorno(r.appuntamento.data)} ore {r.appuntamento.ora_inizio}–{r.appuntamento.ora_fine}</span>
                               <span className="font-medium" style={{ color: colore }}>{r.appuntamento.tipologia_nome}</span>
                             </>
                           ) : r.tipologia ? (

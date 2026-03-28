@@ -65,26 +65,13 @@ export default function DialogAppuntamento({ data, onClose, onSaved, clientePres
       setSaving(false); return
     }
 
-    // Controlla sovrapposizione
-    const { data: overlap } = await supabase.from('appuntamenti')
-      .select('id,cliente_nome,ora_inizio,ora_fine')
-      .eq('data', dataApp)
-      .neq('stato', 'cancellato')
-      .lt('ora_inizio', oraFine)
-      .gt('ora_fine', oraInizio)
-    if (overlap && overlap.length > 0) {
-      const o = overlap[0]
-      setErrore(`Sovrapposizione con: ${o.cliente_nome} (${o.ora_inizio}–${o.ora_fine}). Scegli un orario libero.`)
-      setSaving(false); return
-    }
-
     let idCliente = clienteId
     let nomeCliente = ''
 
     if (nuovoCliente) {
-      if (!cognomeNuovo.trim()) { setErrore('Inserisci il cognome'); setSaving(false); return }
+      if (!nomeNuovo.trim() && !cognomeNuovo.trim()) { setErrore('Inserisci almeno il nome'); setSaving(false); return }
       const { data } = await supabase.from('clienti').insert({ nome: nomeNuovo, cognome: cognomeNuovo }).select().single()
-      if (data) { idCliente = data.id; nomeCliente = `${nomeNuovo} ${cognomeNuovo}` }
+      if (data) { idCliente = data.id; nomeCliente = `${nomeNuovo} ${cognomeNuovo}`.trim() }
     } else if (clientePreselezionato && !clienteId) {
       idCliente = clientePreselezionato.id
       nomeCliente = `${clientePreselezionato.nome} ${clientePreselezionato.cognome}`
@@ -133,7 +120,7 @@ export default function DialogAppuntamento({ data, onClose, onSaved, clientePres
               <div className="grid grid-cols-2 gap-2">
                 <input type="text" placeholder="Nome" value={nomeNuovo} onChange={e => setNomeNuovo(e.target.value)}
                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <input type="text" placeholder="Cognome *" value={cognomeNuovo} onChange={e => setCognomeNuovo(e.target.value)}
+                <input type="text" placeholder="Cognome" value={cognomeNuovo} onChange={e => setCognomeNuovo(e.target.value)}
                   className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             ) : (

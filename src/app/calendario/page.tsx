@@ -112,16 +112,6 @@ function DialogAzione({ app, tipologie, onClose, onSaved, onApriRichiesta }: {
     setSaving(true)
     const t=tipologie.find(t=>t.id===nuovaTipId)
     const oraFineCalc=t?calFine(nuovaOra,t.durata_minuti):app.ora_fine
-    // Controllo sovrapposizione
-    const {data:overlap}=await supabase.from('appuntamenti')
-      .select('id,cliente_nome,ora_inizio,ora_fine')
-      .eq('data',nuovaData).neq('stato','cancellato').neq('id',app.id)
-      .lt('ora_inizio',oraFineCalc).gt('ora_fine',nuovaOra)
-    if(overlap&&overlap.length>0){
-      const o=overlap[0]
-      alert(`Sovrapposizione con: ${o.cliente_nome} (${formatOra(o.ora_inizio)}–${formatOra(o.ora_fine)}).\nScegli un orario libero.`)
-      setSaving(false); return
-    }
     await supabase.from('appuntamenti').update({
       data:nuovaData,ora_inizio:nuovaOra,
       ora_fine:oraFineCalc,
@@ -258,7 +248,7 @@ function VistaSettimana({ dataCorrente, appuntamenti, periodi, festivita, onClic
   dataCorrente:Date; appuntamenti:Appuntamento[]; periodi:PeriodoBloccato[]
   festivita:Map<string,string>
   onClickApp:(e:React.MouseEvent,a:Appuntamento)=>void
-  onClickGiorno:(e:React.MouseEvent,d:string)=>void
+  onClickGiorno:(e:React.MouseEvent,d:string,ora?:string)=>void
   onClickBlocco:(e:React.MouseEvent,p:PeriodoBloccato)=>void
 }) {
   const giorni=eachDayOfInterval({
@@ -309,7 +299,16 @@ function VistaSettimana({ dataCorrente, appuntamenti, periodi, festivita, onClic
               {giorni.map((_,di)=>(
                 <div key={di} className="border-r border-gray-100 bg-white"
                   style={{height:HOUR_H,borderBottom:'1px solid #e2e8f0'}}
-                  onClick={e=>onClickGiorno(e,format(giorni[di],'yyyy-MM-dd'))}>
+                  onClick={e=>{
+                    const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+                    const relY=e.clientY-rect.top
+                    // h è l'ora della riga corrente (dal HOURS.map esterno)
+                    const minsNellaOra=Math.round((relY/HOUR_H)*60/15)*15
+                    const totalMin=h*60+Math.min(minsNellaOra,59)
+                    const hh=Math.floor(totalMin/60),mm=totalMin%60
+                    const ora=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`
+                    onClickGiorno(e,format(giorni[di],'yyyy-MM-dd'),ora)
+                  }}>
                   {/* Linea mezzora */}
                   <div style={{marginTop:HOUR_H/2,borderTop:'1px dashed #e2e8f0'}}/>
                 </div>
@@ -332,22 +331,44 @@ function VistaSettimana({ dataCorrente, appuntamenti, periodi, festivita, onClic
                     <div className="absolute inset-0 pointer-events-none"
                       style={{backgroundColor:blocchi[0].colore+'14'}}/>
                   )}
-                  {appG.map(a=>{
-                    const startMin=timeToMinutes(a.ora_inizio)-START_H*60
-                    const endMin=timeToMinutes(a.ora_fine)-START_H*60
-                    const top=Math.max(0,(startMin/60)*HOUR_H)
-                    const height=Math.max(20,((endMin-startMin)/60)*HOUR_H-4)
-                    return (
-                      <div key={a.id}
-                        onClick={e=>{e.stopPropagation();onClickApp(e,a)}}
-                        className={`absolute left-0.5 right-0.5 rounded text-white text-xs px-1 py-0.5 overflow-hidden cursor-pointer hover:opacity-80 pointer-events-auto shadow-sm
-                          ${a.stato==='in_attesa_spostamento'?'opacity-60':''}`}
-                        style={{top,height,backgroundColor:coloreApp(a)}}>
-                        <div className="font-medium truncate leading-tight">{formatOra(a.ora_inizio)} {a.cliente_nome}</div>
-                        {height>32&&<div className="truncate opacity-80 leading-tight text-[10px]">{a.tipologia_nome}</div>}
-                      </div>
-                    )
-                  })}
+                  {(()=>{
+                    // Calcola colonne per appuntamenti sovrapposti
+                    const cols: number[] = appG.map(()=>0)
+                    const maxCol: number[] = appG.map(()=>0)
+                    for(let i=0;i<appG.length;i++){
+                      const aStart=timeToMinutes(appG[i].ora_inizio)
+                      const aEnd=timeToMinutes(appG[i].ora_fine)
+                      let col=0
+                      const usedCols=new Set<number>()
+                      for(let j=0;j<i;j++){
+                        const bStart=timeToMinutes(appG[j].ora_inizio)
+                        const bEnd=timeToMinutes(appG[j].ora_fine)
+                        if(aStart<bEnd&&aEnd>bStart) usedCols.add(cols[j])
+                      }
+                      while(usedCols.has(col))col++
+                      cols[i]=col
+                    }
+                    const nCols=(cols.length>0?Math.max(...cols)+1:1)
+                    return appG.map((a,idx)=>{
+                      const startMin=timeToMinutes(a.ora_inizio)-START_H*60
+                      const endMin=timeToMinutes(a.ora_fine)-START_H*60
+                      const top=Math.max(0,(startMin/60)*HOUR_H)
+                      const height=Math.max(20,((endMin-startMin)/60)*HOUR_H-4)
+                      const col=cols[idx]
+                      const w=100/nCols
+                      return (
+                        <div key={a.id}
+                          onClick={e=>{e.stopPropagation();onClickApp(e,a)}}
+                          className={`absolute rounded text-white text-xs px-1 py-0.5 overflow-hidden cursor-pointer hover:opacity-80 pointer-events-auto shadow-sm
+                            ${a.stato==='in_attesa_spostamento'?'opacity-60':''}`}
+                          style={{top,height,backgroundColor:coloreApp(a),
+                            left:`${col*w+0.5}%`,width:`${w-1}%`}}>
+                          <div className="font-medium truncate leading-tight">{formatOra(a.ora_inizio)} {a.cliente_nome}</div>
+                          {height>32&&<div className="truncate opacity-80 leading-tight text-[10px]">{a.tipologia_nome}</div>}
+                        </div>
+                      )
+                    })
+                  })()}
                 </div>
               )
             })}
@@ -363,7 +384,7 @@ function VistaGiorno({ dataCorrente, appuntamenti, periodi, festivita, onClickAp
   dataCorrente:Date; appuntamenti:Appuntamento[]; periodi:PeriodoBloccato[]
   festivita:Map<string,string>
   onClickApp:(e:React.MouseEvent,a:Appuntamento)=>void
-  onClickGiorno:(e:React.MouseEvent,d:string)=>void
+  onClickGiorno:(e:React.MouseEvent,d:string,ora?:string)=>void
 }) {
   const dataStr=format(dataCorrente,'yyyy-MM-dd')
   const appGiorno=appuntamenti.filter(a=>a.data===dataStr&&a.stato!=='cancellato')
@@ -406,7 +427,16 @@ function VistaGiorno({ dataCorrente, appuntamenti, periodi, festivita, onClickAp
         </div>
 
         {/* Colonna eventi */}
-        <div className="flex-1 relative" onClick={e=>onClickGiorno(e,dataStr)}>
+        <div className="flex-1 relative" onClick={e=>{
+            const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+            const relY=e.clientY-rect.top
+            // Calcola ora assoluta: relY/HOUR_H = numero di ore da START_H
+            const minTot=Math.round((relY/HOUR_H)*60/15)*15+START_H*60
+            const hh=Math.min(Math.floor(minTot/60), END_H-1)
+            const mm=minTot%60
+            const ora=`${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`
+            onClickGiorno(e,dataStr,ora)
+          }}>
           {/* Righe orarie — sfondo bianco, solo bordo sottile */}
           {HOURS.map(h=>(
             <div key={h} className="bg-white"
@@ -422,23 +452,43 @@ function VistaGiorno({ dataCorrente, appuntamenti, periodi, festivita, onClickAp
           )}
 
           {/* Appuntamenti */}
-          {appGiorno.map(a=>{
-            const startMin=timeToMinutes(a.ora_inizio)-START_H*60
-            const endMin=timeToMinutes(a.ora_fine)-START_H*60
-            const top=Math.max(0,(startMin/60)*HOUR_H)
-            const height=Math.max(24,((endMin-startMin)/60)*HOUR_H-6)
-            return (
-              <div key={a.id}
-                onClick={e=>{e.stopPropagation();onClickApp(e,a)}}
-                className={`absolute left-2 right-2 rounded-lg text-white px-2 py-1 overflow-hidden cursor-pointer hover:opacity-80 shadow-sm
-                  ${a.stato==='in_attesa_spostamento'?'opacity-60':''}`}
-                style={{top,height,backgroundColor:coloreApp(a)}}>
-                <div className="font-semibold text-sm truncate">{formatOra(a.ora_inizio)}–{formatOra(a.ora_fine)}</div>
-                <div className="text-sm truncate">{a.cliente_nome}</div>
-                {height>56&&<div className="text-xs opacity-80 truncate">{a.tipologia_nome}</div>}
-              </div>
-            )
-          })}
+          {(()=>{
+            const cols: number[] = appGiorno.map(()=>0)
+            for(let i=0;i<appGiorno.length;i++){
+              const aStart=timeToMinutes(appGiorno[i].ora_inizio)
+              const aEnd=timeToMinutes(appGiorno[i].ora_fine)
+              let col=0
+              const usedCols=new Set<number>()
+              for(let j=0;j<i;j++){
+                const bStart=timeToMinutes(appGiorno[j].ora_inizio)
+                const bEnd=timeToMinutes(appGiorno[j].ora_fine)
+                if(aStart<bEnd&&aEnd>bStart) usedCols.add(cols[j])
+              }
+              while(usedCols.has(col))col++
+              cols[i]=col
+            }
+            const nCols=(cols.length>0?Math.max(...cols)+1:1)
+            return appGiorno.map((a,idx)=>{
+              const startMin=timeToMinutes(a.ora_inizio)-START_H*60
+              const endMin=timeToMinutes(a.ora_fine)-START_H*60
+              const top=Math.max(0,(startMin/60)*HOUR_H)
+              const height=Math.max(24,((endMin-startMin)/60)*HOUR_H-6)
+              const col=cols[idx]
+              const w=100/nCols
+              return (
+                <div key={a.id}
+                  onClick={e=>{e.stopPropagation();onClickApp(e,a)}}
+                  className={`absolute rounded-lg text-white px-2 py-1 overflow-hidden cursor-pointer hover:opacity-80 shadow-sm
+                    ${a.stato==='in_attesa_spostamento'?'opacity-60':''}`}
+                  style={{top,height,backgroundColor:coloreApp(a),
+                    left:`${col*w+0.5}%`,width:`${w-1}%`}}>
+                  <div className="font-semibold text-sm truncate">{formatOra(a.ora_inizio)}–{formatOra(a.ora_fine)}</div>
+                  <div className="text-sm truncate">{a.cliente_nome}</div>
+                  {height>56&&<div className="text-xs opacity-80 truncate">{a.tipologia_nome}</div>}
+                </div>
+              )
+            })
+          })()}
         </div>
       </div>
     </div>
@@ -456,6 +506,7 @@ export default function Calendario() {
   const [menuGiorno,setMenuGiorno]=useState<{data:string;pos:{x:number;y:number}}|null>(null)
   const [dialogNuovoApp,setDialogNuovoApp]=useState(false)
   const [dataSelezionata,setDataSelezionata]=useState('')
+  const [oraSelezionata,setOraSelezionata]=useState('')
   const [appAzione,setAppAzione]=useState<Appuntamento|null>(null)
   const [dialogRichiesta,setDialogRichiesta]=useState(false)
   const [appIdRichiesta,setAppIdRichiesta]=useState<string|null>(null)
@@ -512,17 +563,24 @@ export default function Calendario() {
     return format(dataCorrente,'EEEE d MMMM yyyy',{locale:it})
   }
 
-  function clickGiorno(e:React.MouseEvent,dataStr:string){
+  function clickGiorno(e:React.MouseEvent,dataStr:string,oraClick?:string){
     e.stopPropagation()
-    setMenuGiorno({data:dataStr,pos:{x:e.clientX,y:e.clientY}})
+    if(oraClick){
+      // In vista settimana/giorno: apre direttamente con l'ora cliccata
+      apriNuovoAppuntamento(dataStr,oraClick)
+    } else {
+      setMenuGiorno({data:dataStr,pos:{x:e.clientX,y:e.clientY}})
+    }
   }
-  function apriNuovoAppuntamento(data:string){
+  function apriNuovoAppuntamento(data:string, ora?:string){
     const blocco=checkBloccato(data)
     if(blocco){
       alert(`Giornata bloccata: ${blocco.titolo}\nNon è possibile inserire appuntamenti in questo periodo.`)
       return
     }
-    setDataSelezionata(data); setDialogNuovoApp(true)
+    setDataSelezionata(data)
+    setOraSelezionata(ora||'')
+    setDialogNuovoApp(true)
   }
   function clickApp(e:React.MouseEvent,app:Appuntamento){
     e.stopPropagation()
@@ -725,7 +783,7 @@ export default function Calendario() {
             onClose={()=>setMenuGiorno(null)}
           />
         )}
-        {dialogNuovoApp&&<DialogAppuntamento data={dataSelezionata} onClose={()=>setDialogNuovoApp(false)} onSaved={()=>{setDialogNuovoApp(false);carica()}}/>}
+        {dialogNuovoApp&&<DialogAppuntamento data={dataSelezionata} oraInizioDefault={oraSelezionata} onClose={()=>setDialogNuovoApp(false)} onSaved={()=>{setDialogNuovoApp(false);carica()}}/>}
         {appAzione&&(
           <DialogAzione app={appAzione} tipologie={tipologie}
             onClose={()=>setAppAzione(null)} onSaved={()=>{setAppAzione(null);carica()}}

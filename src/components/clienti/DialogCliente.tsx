@@ -23,6 +23,12 @@ const MESI_FULL = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Lugl
 const ANNI = Array.from({ length: 6 }, (_, i) => 2024 + i)
 const annoCorrente = new Date().getFullYear()
 
+const GIORNI_IT = ['Dom','Lun','Mar','Mer','Gio','Ven','Sab']
+function formatDataConGiorno(dataStr: string) {
+  const d = new Date(dataStr + 'T00:00:00')
+  return `${GIORNI_IT[d.getDay()]} ${d.toLocaleDateString('it-IT')}`
+}
+
 const IconCal = () => (
   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
@@ -402,7 +408,7 @@ export default function DialogCliente({ onClose, onSaved, cliente, dopoSalvatagg
                               {isInAttesa && <span className="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">⟳ In attesa</span>}
                             </div>
                             <div className={`flex items-center gap-3 text-xs ${isInAttesa || isAnn ? 'text-gray-400' : 'text-gray-500'}`}>
-                              <span className="flex items-center gap-1"><IconCal />{new Date(a.data + 'T00:00:00').toLocaleDateString('it-IT')}</span>
+                              <span className="flex items-center gap-1"><IconCal />{formatDataConGiorno(a.data)}</span>
                               <span className="flex items-center gap-1"><IconClk />{a.ora_inizio}–{a.ora_fine}</span>
                             </div>
                           </div>
