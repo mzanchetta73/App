@@ -1,65 +1,107 @@
-import Image from "next/image";
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function Home() {
+  const router = useRouter()
+
+  // Se già loggato, vai direttamente al calendario
+  useEffect(() => {
+    const utente = localStorage.getItem('ccm_utente')
+    if (utente) {
+      const u = JSON.parse(utente)
+      if (u.ruolo === 'admin') router.push('/admin')
+      else if (u.accesso_calendario) router.push('/calendario')
+    }
+  }, [])
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    <>
+      <style>{`
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html, body { width:100%; height:100%; overflow:hidden; }
+        body {
+          font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+          min-height: 100vh;
+        }
+        .bg {
+          position: fixed; inset: 0; z-index: 0;
+          background: linear-gradient(135deg,
+            #cddcec 0%, #ddd5ef 20%, #eddde9 40%,
+            #f0e6dc 60%, #ddeaf5 80%, #cddcec 100%);
+          background-size: 600% 600%;
+          animation: aurora 16s ease infinite;
+        }
+        .bg::after {
+          content: '';
+          position: absolute; inset: 0;
+          background:
+            radial-gradient(ellipse at 30% 40%, rgba(255,220,240,0.45) 0%, transparent 60%),
+            radial-gradient(ellipse at 70% 60%, rgba(200,220,255,0.45) 0%, transparent 60%);
+          animation: shimmer 10s ease-in-out infinite alternate;
+        }
+        @keyframes aurora {
+          0%   { background-position: 0% 50%; }
+          25%  { background-position: 100% 0%; }
+          50%  { background-position: 100% 100%; }
+          75%  { background-position: 0% 100%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes shimmer {
+          0%   { opacity: 0.6; }
+          100% { opacity: 1; }
+        }
+        .content {
+          position: relative; z-index: 1;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          width: 100%; height: 100vh;
+        }
+        .accesso {
+          position: fixed; top: 28px; right: 40px; z-index: 10;
+          color: #3d4a5c; font-size: 14px; font-weight: 300;
+          letter-spacing: 0.06em; text-decoration: none;
+          opacity: 0.75; transition: opacity 0.3s ease; cursor: pointer;
+          background: none; border: none;
+        }
+        .accesso:hover { opacity: 1; }
+        .title {
+          font-size: clamp(28px, 5vw, 64px); font-weight: 200;
+          letter-spacing: 0.03em; color: #2d3a4a;
+          margin-bottom: 56px; text-align: center;
+          animation: fadeDown 1.4s ease forwards; opacity: 0;
+        }
+        .title sup { font-size: 0.32em; vertical-align: super; font-weight: 300; opacity: 0.65; }
+        @keyframes fadeDown {
+          from { opacity: 0; transform: translateY(-12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .footer {
+          position: fixed; bottom: 28px; left: 40px; z-index: 10;
+          color: #3d4a5c; font-size: 11.5px; font-weight: 300;
+          line-height: 1.7; letter-spacing: 0.02em; opacity: 0.55;
+        }
+      `}</style>
+
+      <div className="bg" />
+
+      <button className="accesso" onClick={() => router.push('/login')}>
+        Accesso
+      </button>
+
+      <div className="content">
+        <h1 className="title">CorpoCoscienteMente<sup>®</sup></h1>
+
+        <img src="/simbolo.png" alt="Simbolo CorpoCoscienteMente" style={{width:'min(280px, 44vw)', height:'auto'}}/>
+      </div>
+
+      <div className="footer">
+        CorpoCoscienteMente®<br/>
+        e il simbolo sono<br/>
+        marchi registrati
+      </div>
+    </>
+  )
 }
